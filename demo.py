@@ -16,7 +16,7 @@ class Middleware:
     def get_consumers(self, consumer, channel):
         raise NotImplementedError
 
-    def on_message(self, message):
+    def on_message(self, *args, **kwargs):
         raise NotImplementedError
 
     def ensure_connection(self):
@@ -80,14 +80,14 @@ class RabbitMQMiddleware(Middleware, ConsumerProducerMixin):
         self.routing_key = routing_key
         self.result_saver = result_saver
 
-        # 定义一个连接队列的方法，返回一个kombu.Consumer对象
+    # 定义一个连接队列的方法，返回一个kombu.Consumer对象
     def get_consumers(self, Consumer, channel):
         return [Consumer(queues=self.queue,
                          on_message=self.on_message,
                          accept={"application/json"})]
 
     # 定义一个处理消费信息的方法，这是一个抽象方法，需要在子类中重写
-    def on_message(self, message):
+    def on_message(self, body, message):
         raise NotImplementedError
 
     # 定义一个网络连接失败重试的方法，使用kombu的ensure_connection装饰器
@@ -112,6 +112,16 @@ class RabbitMQMiddleware(Middleware, ConsumerProducerMixin):
                              routing_key=self.routing_key,
                              serializer="json")
 
+    def run(self):
+        with Consumer(self.connection, queues=queue, callbacks=[self.on_message],
+                      accept=["text/plain", "application/json"]):
+            while True:
+                try:
+                    self.connection.drain_events(timeout=2)  # 设置超时时间
+                except self.connection.connection_errors:
+                    print("Connection error, trying to reconnect...")
+                    time.sleep(2)  # 如果连接失败，等待一段时间再重试
+
 
 # 定义一个Redis中间件类，继承自中间件类
 class RedisMiddleware(Middleware):
@@ -122,12 +132,12 @@ class RedisMiddleware(Middleware):
 # 定义流程引擎框架类
 class ProcessEngine(RabbitMQMiddleware):
     # 重写处理消费信息的方法，在这里实现本身业务的代码逻辑
-    def on_message(self, message):
+    def on_message(self, body, message):
         try:
             # 获取消息体中的数据
-            data = message.payload["data"]
+            payload = body["data"]
             # 对数据进行一些处理，这里只是简单地加一
-            result = self.handle_task_data(data)
+            result = self.handle_task_data(payload)
             # 调用父类的消费信息结果入库的方法
             self.save_result(result)
             # 调用父类的消费信息结果再发布的方法
@@ -216,7 +226,8 @@ domain_engine.run()
 # 然后，您需要创建一个连接对象，指定传输方式、主机、端口、用户名、密码等参数。例如：
 
 
-from kombu import Connection
+from kombu import Connection, Consumer
+
 connection = Connection(transport="amqp", hostname="localhost", port=5672, userid="guest", password="guest")
 # 接下来，您需要创建一个交换机对象，指定名称、类型和持久化等参数。例如：
 
