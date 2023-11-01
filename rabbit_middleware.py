@@ -1,7 +1,6 @@
 
 import time
-
-import kombu
+import traceback
 
 # 定义一个RabbitMQ中间件类，继承自中间件类
 from kombu import Consumer
@@ -31,7 +30,6 @@ class RabbitMQMiddleware(Middleware):
         raise NotImplementedError
 
     # 定义一个网络连接失败重试的方法，使用kombu的ensure_connection装饰器
-    @kombu.utils.retries(max_retries=3)
     def ensure_connection(self):
         return self.connection.ensure_connection()
 
@@ -46,18 +44,20 @@ class RabbitMQMiddleware(Middleware):
 
     # 定义一个消费信息结果再发布的方法，使用kombu的Producer对象发送消息到交换机和路由键
     def republish_result(self, result):
-        with kombu.Producer(self) as producer:
+        with self.connection.Producer() as producer:
             producer.publish(result,
                              exchange=self.exchange,
                              routing_key=self.routing_key,
-                             serializer="json")
+                             serializer="json",
+                             retry=True)
 
     def run(self):
         with Consumer(self.connection, queues=self.queue, callbacks=[self.on_message],
                       accept=["text/plain", "application/json"]):
             while True:
                 try:
-                    self.connection.drain_events(timeout=2)  # 设置超时时间
+                    self.connection.drain_events(timeout=600)  # 设置超时时间
                 except self.connection.connection_errors:
-                    print("Connection error, trying to reconnect...")
+                    print(f"Connection error: {traceback.format_exc()}")
+                    # self.connection.ensure(self, self.run)
                     time.sleep(2)  # 如果连接失败，等待一段时间再重试

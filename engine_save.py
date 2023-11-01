@@ -8,6 +8,7 @@ class ResultSaver:
 class MySQLResultSaver(ResultSaver):
     def save(self, result):
         # 这里是保存到MySQL数据库的代码
+        print(f"save into mysql db")
         pass
 
 
@@ -15,6 +16,7 @@ class MySQLResultSaver(ResultSaver):
 class RedisResultSaver(ResultSaver):
     def save(self, result):
         # 这里是保存到Redis数据库的代码
+        print(f"save into redis db")
         pass
 
 
@@ -29,4 +31,5 @@ class PostgreSQLResultSaver(ResultSaver):
 class MongoDBResultSaver(ResultSaver):
     def save(self, result):
         # 这里是保存到MongoDB数据库的代码
+        print(f"save into mongo db")
         pass

@@ -1,5 +1,5 @@
 
-
+import traceback
 # 定义流程引擎框架类
 from rabbit_middleware import RabbitMQMiddleware
 
@@ -20,7 +20,7 @@ class ProcessEngine(RabbitMQMiddleware):
             message.ack()
         except Exception as e:
             # 如果发生异常，打印错误信息，并拒绝消息，让其重新入队列
-            print(f"Error: {e}")
+            print(f"Error: {traceback.format_exc()}")
             message.reject(requeue=True)
 
     def handle_task_data(self, data):

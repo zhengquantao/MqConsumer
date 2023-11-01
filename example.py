@@ -19,7 +19,8 @@ class DomainEngine(ProcessEngine):
         super().__init__(connection, queue, exchange, routing_key, result_saver)
 
     def handle_task_data(self, data):
-        pass
+        print(data)
+        return {}
 
 
 class WebFingerEngine(ProcessEngine):
@@ -39,14 +40,14 @@ connection = kombu.Connection(transport="amqp",
                               password="guest")
 
 # 创建一个交换机对象，指定名称、类型和持久化等参数
-exchange = kombu.Exchange(name="test_exchange",
+exchange = kombu.Exchange(name="test",
                           type="direct",
                           durable=True)
 
 # 创建一个队列对象，指定名称、交换机和路由键等参数，并绑定到交换机上
-queue = kombu.Queue(name="test_queue",
+queue = kombu.Queue(name="test",
                     exchange=exchange,
-                    routing_key="test_key")
+                    routing_key="test")
 queue.bind(connection)
 
 
@@ -61,11 +62,32 @@ domain_engine.run()
 
 
 
+def test_producer():
+    # 创建连接
+    with Connection(transport="amqp",
+                    hostname="localhost",
+                    port=5672,
+                    userid="guest",
+                    password="guest") as conn:
+        # 创建交换机
+        exchange = Exchange("test", type="direct")
 
+        # 创建生产者
+        producer = conn.Producer(serializer='json')
 
+        # 创建队列
+        queue = Queue(name="test", exchange=exchange, routing_key="test")
 
+        # 确保队列已经存在
+        queue.maybe_bind(conn)
+        queue.declare()
 
+        # 发送消息
+        message = {"data": {"env": True, "debug": 8, "msg": "hello world8"}}
+        producer.publish(message, exchange=exchange, serializer='json', compression='bzip2', routing_key="test",
+                         retry=True)
 
+test_producer()
 
 
 # 如何使用Python kombu连接rabbitmq队列？
