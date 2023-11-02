@@ -45,6 +45,11 @@ class RabbitMQMiddleware(Middleware):
     # 定义一个消费信息结果再发布的方法，使用kombu的Producer对象发送消息到交换机和路由键
     def republish_result(self, result):
         with self.connection.Producer() as producer:
+            # # 确保队列已经存在
+            # queue = Queue(name="test_key", exchange=exchange, routing_key="test_key")
+            # queue.maybe_bind(conn)
+            # queue.declare()
+
             producer.publish(result,
                              exchange=self.exchange,
                              routing_key=self.routing_key,
